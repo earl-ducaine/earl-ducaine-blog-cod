@@ -20,10 +20,10 @@
   its generic function system is too powerful to be considered
   strictly OO.  
 
-  Even considering the odball nature of CLOS as an object system, Meta
-  Object Protocol (MOP) seems to diverge even more.  A whole
+  Even considering the odball nature of CLOS as an object system, the
+  Meta Object Protocol (MOP) seems to diverge even more.  A whole
   convention has grow up around meta object programming that renders
-  the MOP seem very alien.  
+  the MOP seem very alien.
 
   But before one dismisses MOP as too arcane or a relic of a bygon age
   before object oriented tools and conventions had coalesced into
@@ -32,9 +32,10 @@
   subset of tools which could be used to build a full featured CLOS
   system. In short MOP provides a fascility to build an object system
   taylored to your specific needs, removing aspects of CLOS that are
-  cumbersome, not applicable, or too obscure for your system.  While
-  MOP is not officially part of the ansi standard it is well supported
-  across modern Lisp Systems.
+  cumbersome, not applicable, or too obscure for your system and
+  adding those that reinforce the abstraction of you application.
+  While MOP is not officially part of the ansi standard it is well
+  supported across modern Lisp Systems.
 
   One of the keys in understanding MOP like many things in CL is to be
   able to map its abstract feature to familiar, cocreate tasks.  In
@@ -88,44 +89,18 @@
     (closer-mop:ensure-class
      :disk-info
      :direct-slots
-     (list '(:name label :readers (:label) :initargs '(:label))
-           '(:name cyls :readers (:cyls) :initargs '(:cyls))
-
-
-      (list* :name 'heads :readers '(:heads) :writers
-             '((setf :heads)) :initargs '(:heads)
-             'sb-pcl::source
-      (list* :name 'blockspertrack :readers
-             '(:blockspertrack) :writers
-             '((setf :blockspertrack)) :initargs
-             '(:blockspertrack) 'sb-pcl::source
-      (list* :name 'mcr :readers '(:mcr) :writers
-             '((setf :mcr)) :initargs '(:mcr)
-             'sb-pcl::source
-      (list* :name 'lod :readers '(:lod) :writers
-             '((setf :lod)) :initargs '(:lod)
-             'sb-pcl::source
-      (list* :name 'brand :readers '(:brand) :writers
-             '((setf :brand)) :initargs '(:brand)
-             'sb-pcl::source
-      (list* :name 'text :readers '(:text) :writers
-             '((setf :text)) :initargs '(:text)
-             'sb-pcl::source
-      (list* :name 'comment :readers '(:comment) :writers
-             '((setf :comment)) :initargs '(:comment)
-             'sb-pcl::source
-     (list :direct-default-initargs nil)
-     '(:comment :text :brand :lod :mcr :blockspertrack
-       :heads :cyls :label)
-     '((setf :comment) (setf :text) (setf :brand)
-       (setf :lod) (setf :mcr) (setf :blockspertrack)
-       (setf :heads) (setf :cyls) (setf :label))
-     '(comment text brand lod mcr blockspertrack heads
-       cyls label)
-     (sb-c:source-location)))
+     '((:name label :readers (:label) :initargs (:labe))
+       (:name cyls :readers (:cyls) :initargs (:cyls))
+       (:name heads :readers (:heads) :initargs (:heads))
+       (:name blockspertrack :readers (:blockspertrack) :initargs (:blockspertrack))
+       (:name mcr :readers (:mcr) :initargs (:mcr))
+       (:name lod :readers (:lod) :initargs (:lod))
+       (:name brand :readers (:brand) :initargs (:brand))
+       (:name text :readers (:text) :initargs (:text))
+       (:name comment :readers (:comment) :initargs (:comment))))
    #+END_SRC
 
-
+   Since, ensure-class is an ordinary function
 
    #+BEGIN_SRC lisp :tangle start-swank-server.lisp
      (defun disk-kit-defclass ()
