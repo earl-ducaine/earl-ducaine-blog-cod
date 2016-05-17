@@ -1,0 +1,453 @@
+* Factories and introspection in CLOS and MOP
+
+  One of the sources of Common Lisp's reputation for difficulty is
+  that it uses a speciallized terminology: for instance you don't have
+  global variables instead they're called special.  let doesn't create
+  a variable, but instead a variable binding.  Functions are not
+  executed within the local scope of the let, but rather "executes a
+  series of forms that use these bindings".  This specialized
+  terminology allows you to talk about features and constructs in CL
+  with greater precision than you could using a more familiar, but
+  ambiguous terminology.
+
+  CLOS carries on this pattern by relying heavily on such features as
+  generic functions, slots, initialization arguments, reader function,
+  writer function.  All of which obscure the classic object oriented
+  aspects of CLOS.  So, much so that Peter Norvig wonders in his
+  Paradigms of Artificial Intelligence Programming whether CLOS is
+  object oriented.  Aspects in which it's not include the fact that 
+  it doesn't provide modular objects with information hiding and that
+  its generic function system is too powerful to be considered
+  strictly OO.  
+
+  Even considering the odball nature of CLOS as an object system, Meta
+  Object Protocol (MOP) seems to diverge even more.  A whole
+  convention has grow up around meta object programming that renders
+  the MOP seem very alien.  
+
+  But before one dismisses MOP as too arcane or a relic of a bygon age
+  before object oriented tools and conventions had coalesced into
+  their current form, it's worthwhile keeping in mind CLOS is still an
+  extrodinarily powerful object system, and MOP was developed as small
+  subset of tools which could be used to build a full featured CLOS
+  system. In short MOP provides a fascility to build an object system
+  taylored to your specific needs, removing aspects of CLOS that are
+  cumbersome, not applicable, or too obscure for your system.  While
+  MOP is not officially part of the ansi standard it is well supported
+  across modern Lisp Systems.
+
+  One of the keys in understanding MOP like many things in CL is to be
+  able to map its abstract feature to familiar, cocreate tasks.  In
+  this excercise we'll use MOP to create a factory tools for
+  introspection analagous to what can be created in more contemporary
+  OO systems like Java.
+
+** Factories
+
+   A factory is an object used to create classes.  It extends the OO
+   pattern, where classes are templates used to create objects, so
+   that you can use classes as templates to create other classes,
+   which of course is core aspect of MOP.
+
+   To motivate our new class lets take a look at the following:
+
+   #+BEGIN_SRC lisp :tangle start-swank-server.lisp
+     (defclass disk-info ()
+       ((label :accessor :label :initarg :label)
+         (cyls :accessor :cyls :initarg :cyls)
+         (heads :accessor :heads :initarg :heads)
+         (blockspertrack :accessor :blockspertrack :initarg :blockspertrack)
+         (mcr :accessor :mcr :initarg :mcr)
+         (lod :accessor :lod :initarg :lod)
+         (brand :accessor :brand :initarg :brand)
+         (text :accessor :text :initarg :text)
+         (comment :accessor :comment :initarg :comment)))
+   #+END_SRC
+   
+   There is obviously a pattern here, with each slot having an
+   accessor and initform formed in the same way from the slot name.
+   In many applications a large number of classes with many slots need
+   might need to be created using the same conventions.  Eliminating
+   as much boilerplating as possible makes code more comprehendible
+   and reduces the likelihood of making a clarical error.  What would
+   be nice is to be able to define the above class in the following
+   way:
+
+   #+BEGIN_SRC lisp :tangle start-swank-server.lisp
+     (disk-kit-defclass disk-info
+       '(label cyls heads blockspertrack mcr lod brand text comment))
+   #+END_SRC
+
+   The 'define-factory' function is the somewhat obscurely name
+   ensure-class.  It it is a functional wrapper to the defclass macro.
+   Its various keyword arguments are the various sections of the
+   defclass macro in 'canonical form.  For example, the above defclass
+   form would look like the following when expanded under expandmacro 
+ 
+  #+BEGIN_SRC lisp :tangle start-swank-server.lisp
+    (closer-mop:ensure-class
+     :disk-info
+     :direct-slots
+     (list '(:name label :readers (:label) :initargs '(:label))
+           '(:name cyls :readers (:cyls) :initargs '(:cyls))
+
+
+      (list* :name 'heads :readers '(:heads) :writers
+             '((setf :heads)) :initargs '(:heads)
+             'sb-pcl::source
+      (list* :name 'blockspertrack :readers
+             '(:blockspertrack) :writers
+             '((setf :blockspertrack)) :initargs
+             '(:blockspertrack) 'sb-pcl::source
+      (list* :name 'mcr :readers '(:mcr) :writers
+             '((setf :mcr)) :initargs '(:mcr)
+             'sb-pcl::source
+      (list* :name 'lod :readers '(:lod) :writers
+             '((setf :lod)) :initargs '(:lod)
+             'sb-pcl::source
+      (list* :name 'brand :readers '(:brand) :writers
+             '((setf :brand)) :initargs '(:brand)
+             'sb-pcl::source
+      (list* :name 'text :readers '(:text) :writers
+             '((setf :text)) :initargs '(:text)
+             'sb-pcl::source
+      (list* :name 'comment :readers '(:comment) :writers
+             '((setf :comment)) :initargs '(:comment)
+             'sb-pcl::source
+     (list :direct-default-initargs nil)
+     '(:comment :text :brand :lod :mcr :blockspertrack
+       :heads :cyls :label)
+     '((setf :comment) (setf :text) (setf :brand)
+       (setf :lod) (setf :mcr) (setf :blockspertrack)
+       (setf :heads) (setf :cyls) (setf :label))
+     '(comment text brand lod mcr blockspertrack heads
+       cyls label)
+     (sb-c:source-location)))
+   #+END_SRC
+
+
+
+   #+BEGIN_SRC lisp :tangle start-swank-server.lisp
+     (defun disk-kit-defclass ()
+       (closer-mop:ensure-class :disk-info
+                                :direct-slots
+                                '((:name mach
+                                   :initargs (mach)           ; initarg(s)
+                                   :readers (plane-altitude)) ; accessor(s)
+                                  )))
+  
+     (ensure-class :disk-info ()
+       '(label cyls heads blockspertrack mcr lod brand text comment))
+   #+END_SRC
+
+
+   
+
+
+** Stupid Autotool Tricks
+
+   The build tools of the GNU tool chain Probably simultaneously count
+   as one of the greatest accomplishments in programming history as
+   well as one of the greatest failures.  The ability to configure and
+   build software packages on a wide variety of platforms, by
+   downloading the sources typing ./configure and make is remarkable.
+   In the bad old days even minor changes in machine architectures
+   required extensive modifications to a slew of .h files to get things
+   to compile.  That effort had to be repeated by every person
+   attempting to build the package multiplied by every package that he
+   was trying to build.  Often subtle bugs would be introduced either
+   in the preparation of boilerplate .h files bundled with the
+   software that had to be customized.  Or with the act of customizing
+   the the software itself.  
+
+   As C coding conventions slowly became standardized and Posix became
+   at least a sign-post which pointed in the direction of how to write
+   cross platform applications for Unix-like systems, a new system was
+   developed for relieving the significant manual effort needed to
+   compile packages on new platforms: Autotools. Autotools have
+   subsequently become central to GNU's build and packaging system as
+   well as to packages that need to run in other environments.  
+
+   The system is not without detractors: it is huge extremely complex
+   and of varying quality with many older systems in a gray area of
+   being partially supported but containing significant bugs.  And
+   there are alternatives, cmake being probably the most popular in
+   the free world.  Yet in terms of features no other system
+   commercial or free begins to approach to the scope of functionality
+   that that auto-tools integrates.
+
+   Coordination of building, installing and running shared libraries
+   is one such area where the GNU tool-chain with auto-tools is the only
+   game in town.  The purpose of the tricks documented is to provide a
+   laboratory in which to learn Autotools from the perspective of an
+   ECL Common Lisp developer.  
+
+** Getting Started
+   
+   For many years Autotools totally mystified me.  It was like a
+   Chinese box puzzle in which I could randomly manipulate various
+   parts, in a certain order to get a build, or even to create a new
+   package, but I had no clue how the underlying system operated and
+   there seemed to be no way to comprehend it, i.e. even the most
+   minor detail seemed to require a vast, detailed knowledge of the
+   entire system to understand how that piece works.  Minus that
+   knowledge, I simply preceded on faith that certain things just
+   'worked', when done in a certain way and in a certain
+   order. 
+
+   Because the entire Unix system bootstrapped itself in terms of of
+   various pieces being developed from other lower-level tools and GNU
+   carried this process even further being bootstrapped by itself as
+   it slowly replaced key Unix facilities, it's actually easier to
+   understand Autotools from a historical perspective.  Indeed the
+   history of the Autotools has left a tell-tail series of layers much
+   as an archaeologist would find when digging the cite of an ancient
+   city. 
+   
+
+   These are a couple of snippets that could be found in the old,
+   pre-autotools, Emacs.
+
+   #+BEGIN_SRC c  :tangle m-vax.h
+     /* The following three symbols give information on
+      the size of various data types.  */
+
+     #define SHORTBITS 16            /* Number of bits in a short */
+
+     #define INTBITS 32              /* Number of bits in an int */
+
+     #define LONGBITS 32             /* Number of bits in a long */
+
+     /* Vax is not big-endian: lowest numbered byte is least significant. */
+
+     #undef BIG_ENDIAN
+   #+END_SRC
+
+
+   #+BEGIN_SRC c  :tangle bsd4.3.h
+     /*
+      ,*      Define HAVE_TIMEVAL if the system supports the BSD style clock values.
+      ,*      Look in <sys/time.h> for a timeval structure.
+      ,*/
+
+     #define HAVE_TIMEVAL
+
+     /*
+      ,*      Define HAVE_SELECT if the system supports the `select' system call.
+      ,*/
+
+     #define HAVE_SELECT
+
+     /*
+      ,*      Define HAVE_PTYS if the system supports pty devices.
+      ,*/
+
+     #define HAVE_PTYS
+   #+END_SRC
+
+
+
+
+
+
+
+
+** Embedding Swank in a c application.
+ 
+   Swank is a Lisp program that provides remote access to a Lisp
+   instance. It started as client/server application layer in CMUCL
+   and the Hemlock editor it ran.  It's since been ported to most
+   Lisps.  Slime is the Emacs front-end client to Swank.  Together the
+   two tools provide a powerful Lisp development environment in Emacs.
+   The easiest way to install Swank and Slime is simply to get it from
+   quicklisp.  See:
+
+   https://www.quicklisp.org/beta/
+
+   Swank and slime work in following way:
+
+   [[file:./building.svg]]
+
+   #+BEGIN_SRC :tangle no
+     +----------+     launch ecl in                +--------------------+ 
+     | emacs    |---- process buffer, tell ------> | ecl process buffer |
+     +----------+     ecl to start swank           +-----+--------------+       		   
+        |      	    	       		                 |
+        |	    	                           start swank server:
+     create slime    			           (swank-loader:init)
+     buffer					   (swank:start-server)
+        |                                                |
+        |                                                |
+       \/  		                                \/
+     +--------------+      integrated      +--------------------------------+
+     | repl:        +<---- lisp repl   --->| swank server listening         |
+     | slime buffer |      interaction     | on some arbitrary              |
+     +--------------+                      | TCP/IP port e.g.               |
+                                           | "Swank started at port: 46493" |
+                                           +--------------------------------+
+                                                           /\
+     +--------------------------+                           |
+     | edit:                    +<--------------------------+
+     | buffer with Lisp source  |
+     +--------------------------+   
+   #+END_SRC
+
+   To embed swank in a C application we need the application to launch
+   Swank and then for Emacs to establish the connection to the swank
+   server using ~slime-connect~.  Below is the C code that launches
+   Swank.
+
+   Note, the following example is for a GNU/Linux type system. ecl
+   needs to explicitly load load a shared library in order to access
+   binary symbols such as C functions or C variables in the process,
+   this is a hackish way of handling it since the library was already
+   loaded when the applicaiton started, and could cause problems on
+   platforms that put different constraints on loading shared
+   libraries.
+	    	    
+   #+BEGIN_SRC c  :tangle main.c
+     /* -*- mode: c;  -*-
+        file: main.c
+     */
+
+     #include "app_main.h"
+     /* a.out wrapper for call into a shared library. */
+     int main() {
+       return app_main();
+     }
+   #+END_SRC
+
+   #+BEGIN_SRC c  :tangle app_main.h
+     /* -*- mode: c;  -*-
+        file: app_main.h
+     */
+
+     #ifndef __APP_MAIN_H__
+     #define __APP_MAIN_H__
+
+     #include <ecl/ecl.h>
+
+     int app_main();
+
+     #endif /* APP_MAIN_H */
+   #+END_SRC
+
+   The following creates the shared library ~app_main~ used by both
+   the C program and ECL for symbols.  The embedded ECL code
+   initializes the ECL environment and calls the Common Lisp ~load~
+   function to load a local Lisp file with the code to run swank.
+
+   #+BEGIN_SRC c  :tangle app_main.c
+     /* -*- mode: c;  -*-
+        file: app_main.c
+     ,*/
+
+     #include <stdlib.h>
+     #include <math.h>
+     #include "app_main.h"
+
+     void run_swank();
+
+     /* TODO: Are embedded quotes really needed? */
+     char start_swank[] =
+       "\"/mnt/pixel-512/dev/stupid-ecl-tricks-1/start-swank-server.lisp\"";
+
+     char* argv;
+     char** pargv;
+
+     int app_main() {
+       argv = "app";
+       pargv = &argv;
+
+       cl_boot(1, pargv);
+       atexit(cl_shutdown);
+
+       /* Set up handler for Lisp errors to prevent buggy Lisp (an */
+       /* imposibility, I know!) from killing the app. */
+       const cl_env_ptr l_env = ecl_process_env();
+       CL_CATCH_ALL_BEGIN(l_env) {
+         CL_UNWIND_PROTECT_BEGIN(l_env) {
+           run_swank();
+         }
+         CL_UNWIND_PROTECT_EXIT {}
+         CL_UNWIND_PROTECT_END;
+       }
+       CL_CATCH_ALL_END;
+
+       return 0;
+
+     }
+
+     void run_swank() {
+       cl_object cl_start_swank_path = c_string_to_object(start_swank);
+       cl_object cl_load =  ecl_make_symbol("LOAD","CL");
+       cl_funcall(2, cl_load, cl_start_swank_path);
+       return;
+     }
+   #+END_SRC
+
+
+   The following Lisp file, loaded by app_main, contains a couple of
+   snippets of code I copied from the Emacs Slime client that launches
+   the Swank server.  When Swank launches it will print out the socket
+   you can use to connect to it, e.g.
+
+   ~;; Swank started at port: 58252.~
+
+   you can then connect to it in Emacs using Slime:
+
+   ~M-x slime-connect~
+
+   #+BEGIN_SRC lisp :tangle start-swank-server.lisp
+     ;;; -*- mode: lisp ; syntax: ansi-common-lisp -*-
+
+     ;; standard quicklisp init file, since with be launching ecl without ~/.eclrc
+     (let ((quicklisp-init (merge-pathnames "quicklisp/setup.lisp"
+                                            (user-homedir-pathname))))
+       (when (probe-file quicklisp-init)
+         (load quicklisp-init)))
+
+     (when (probe-file  "/tmp/slime.2565")
+       (delete-file "/tmp/slime.2565"))
+
+     (load
+      "~/quicklisp/dists/quicklisp/software/slime-2.14/swank-loader.lisp"
+      :verbose t)
+
+     (funcall (read-from-string "swank-loader:init"))
+     (funcall (read-from-string "swank:start-server")
+              "/tmp/slime.2565"))
+
+   #+END_SRC
+
+   A quick and dirty script file to build a shared library.  
+
+   #+BEGIN_SRC sh :tangle build_app.sh
+
+     # -*- mode: bash;  -*-
+
+
+     rm -f *.o *.so app
+
+     export libs="-lm"
+
+     # Note, the -Wl,-R flags will make our shared library available to the
+     # executable app from the location that it was compiled, rather than
+     # having to be installed globably or adding the build path to
+     # LD_LIBRARY_PATH.
+
+     export ldflags="-L. -Wl,-R -Wl,."
+     export cflags="-DGC_LINUX_THREADS -D_REENTRANT -fPIC  -g -pipe -Wall"
+
+     gcc $cflags -c app_main.c
+     gcc -shared -Wl,-soname,libapp_main.so $ldflags -lecl -o libapp_main.so *o $libs
+     gcc main.c $cflags $ldflags -lapp_main -lecl -o app
+   #+END_SRC
+
+   To build and run
+
+   #+BEGIN_SRC :tangle no
+     $ ./build_app.sh
+     $ ./app
+   #+END_SRC
+
